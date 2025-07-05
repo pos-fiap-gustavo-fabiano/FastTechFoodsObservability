@@ -51,7 +51,6 @@ namespace FastTechFoods.Observability
                     });
                 });
             });
-
             return services;
         }
     }

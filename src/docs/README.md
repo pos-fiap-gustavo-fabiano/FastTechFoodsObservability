@@ -37,10 +37,11 @@ using FastTechFoods.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddFastTechFoodsObservability(options =>
-{
-    // Configure endpoints, sampling, exporters, etc.
-});
+builder.Services.AddFastTechFoodsObservability(
+    serviceName: "FastTechFoodsAuth.Api",
+    serviceVersion: "1.0.0",
+    otlpEndpoint: "http://4.198.128.197:4317"
+);
 
 var app = builder.Build();
 
@@ -48,8 +49,6 @@ app.UseFastTechFoodsObservability();
 
 app.Run();
 ```
-
-> Consulte a documentação dos métodos de configuração para customizações avançadas.
 
 ---
 
@@ -73,10 +72,11 @@ app.Run();
 ## 📝 Exemplo de Configuração OTLP
 
 ```csharp
-builder.Services.AddFastTechFoodsObservability(options =>
-{
-    options.UseOtlpExporter("http://localhost:4317");
-});
+builder.Services.AddFastTechFoodsObservability(
+    serviceName: "FastTechFoodsAuth.Api",
+    serviceVersion: "1.0.0",
+    otlpEndpoint: "http://4.198.128.197:4317"
+);
 ```
 
 ---

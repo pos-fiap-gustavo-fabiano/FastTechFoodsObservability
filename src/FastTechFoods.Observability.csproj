@@ -16,9 +16,7 @@
 		<PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.0.0-beta.12" />
 	</ItemGroup>
 	<ItemGroup>
-	  <None Update="docs\README.md">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
+		<None Include="docs\README.md" Pack="true" PackagePath="\"/>
 	</ItemGroup>
 
 </Project>

@@ -5,16 +5,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
-	<Version>2.1.0</Version>
+	<Version>2.2.0</Version>
   </PropertyGroup>
 	<ItemGroup>
+		<PackageReference Include="Npgsql.OpenTelemetry" Version="9.0.3" />
 		<PackageReference Include="OpenTelemetry" Version="1.11.2" />
 		<PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.11.2" />
 		<PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.11.2" />
 		<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.11.2" />
 		<PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.11.1" />
 		<PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.11.1" />
-		<PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.0.0-beta.12" />
 		<PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" Version="2.2.0" />
 		<PackageReference Include="AspNetCore.HealthChecks.UI" Version="8.0.2" />
 		<PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.1" />
@@ -30,7 +30,7 @@
 		<PackageReference Include="prometheus-net.AspNetCore.HealthChecks" Version="8.2.1" />
 	</ItemGroup>
 	<ItemGroup>
-		<None Include="docs\README.md" Pack="true" PackagePath="\"/>
+		<None Include="docs\README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 </Project>

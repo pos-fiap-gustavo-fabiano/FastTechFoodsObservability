@@ -11,6 +11,7 @@ using OpenTelemetry.Trace;
 using Serilog;
 using HealthChecks.UI.Client;
 using Prometheus;
+using Npgsql;
 
 namespace FastTechFoods.Observability
 {
@@ -42,7 +43,7 @@ namespace FastTechFoods.Observability
                     .AddSource(serviceName)
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
+                    .AddNpgsql()
                     .AddOtlpExporter(options =>
                     {
                         options.Endpoint = new Uri(otlpEndpoint);
@@ -127,7 +128,7 @@ namespace FastTechFoods.Observability
                     .AddSource(serviceName)
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
+                    .AddNpgsql()
                     .AddOtlpExporter(options =>
                     {
                         options.Endpoint = new Uri(otlpEndpoint);

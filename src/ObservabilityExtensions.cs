@@ -172,7 +172,7 @@ namespace FastTechFoods.Observability
             {
                 setup.SetEvaluationTimeInSeconds(15);
                 setup.MaximumHistoryEntriesPerEndpoint(60);
-                setup.AddHealthCheckEndpoint(serviceName, "/health");
+                //setup.AddHealthCheckEndpoint(serviceName, "/health");
             })
             .AddInMemoryStorage();
 

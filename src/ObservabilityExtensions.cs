@@ -165,7 +165,7 @@ namespace FastTechFoods.Observability
 
             // Configure HealthChecks
             services.AddHealthChecks()
-                .AddDbContextCheck<TDbContext>();
+                .AddDbContextCheck<TDbContext>("database-context");
 
             // Configure HealthChecks UI with in-memory storage
             services.AddHealthChecksUI(setup =>
@@ -266,8 +266,8 @@ namespace FastTechFoods.Observability
 
             // Configure HealthChecks with custom health check (without duplicating DbContext check)
             services.AddHealthChecks()
-                .AddDbContextCheck<TDbContext>()
-                .AddCheck<THealthCheck>("custom-database");
+                .AddDbContextCheck<TDbContext>("database-context")
+                .AddCheck<THealthCheck>("custom-health-check");
 
             // Configure HealthChecks UI with in-memory storage
             services.AddHealthChecksUI(setup =>
@@ -370,6 +370,35 @@ namespace FastTechFoods.Observability
             var serviceVersion = observabilityConfig["ServiceVersion"] ?? "1.0.0";
 
             return services.AddFastTechFoodsPrometheus(serviceName, serviceVersion);
+        }
+
+        /// <summary>
+        /// Configures only HealthChecks without duplicating any observability configuration.
+        /// Use this when you already have observability configured and only need health checks.
+        /// </summary>
+        /// <typeparam name="TDbContext">The Entity Framework DbContext type for database health checks</typeparam>
+        /// <param name="services">The IServiceCollection to add services to</param>
+        /// <param name="serviceName">The service name for health check UI</param>
+        /// <returns>The IServiceCollection for chaining</returns>
+        public static IServiceCollection AddFastTechFoodsHealthChecksOnly<TDbContext>(
+            this IServiceCollection services,
+            string serviceName = "FastTechFoods.Service")
+            where TDbContext : DbContext
+        {
+            // Configure only HealthChecks
+            services.AddHealthChecks()
+                .AddDbContextCheck<TDbContext>("database-context");
+
+            // Configure HealthChecks UI with in-memory storage
+            services.AddHealthChecksUI(setup =>
+            {
+                setup.SetEvaluationTimeInSeconds(15);
+                setup.MaximumHistoryEntriesPerEndpoint(60);
+                setup.AddHealthCheckEndpoint(serviceName, "/health");
+            })
+            .AddInMemoryStorage();
+
+            return services;
         }
     }
 }

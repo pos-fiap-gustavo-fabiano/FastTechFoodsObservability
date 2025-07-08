@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
-	<Version>2.3.0</Version>
+	<Version>2.4.0</Version>
   </PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Npgsql.OpenTelemetry" Version="9.0.3" />

@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,9 +8,8 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
-using HealthChecks.UI.Client;
-using Prometheus;
 using Npgsql;
+using MassTransit.Logging;
 
 namespace FastTechFoods.Observability
 {
@@ -45,6 +43,7 @@ namespace FastTechFoods.Observability
                     .AddHttpClientInstrumentation()
                     .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
                     .AddNpgsql()
+                    // TODO: Add MongoDB instrumentation when package is stable
                     .AddOtlpExporter(options =>
                     {
                         options.Endpoint = new Uri(otlpEndpoint);
@@ -80,17 +79,15 @@ namespace FastTechFoods.Observability
         }
 
         /// <summary>
-        /// Configures comprehensive FastTechFoods observability (OpenTelemetry + Serilog) and HealthChecks 
+        /// Configures comprehensive FastTechFoods observability (OpenTelemetry + Serilog) 
         /// using configuration values from the 'Observability' section.
         /// </summary>
-        /// <typeparam name="TDbContext">The Entity Framework DbContext type for database health checks</typeparam>
         /// <param name="services">The IServiceCollection to add services to</param>
         /// <param name="configuration">The configuration object to read from</param>
         /// <returns>The IServiceCollection for chaining</returns>
-        public static IServiceCollection AddFastTechFoodsObservabilityAndHealthChecks<TDbContext>(
+        public static IServiceCollection AddFastTechFoodsObservabilityWithSerilog(
             this IServiceCollection services,
             IConfiguration configuration)
-            where TDbContext : DbContext
         {
             // Get observability configuration section
             var observabilityConfig = configuration.GetSection("Observability");
@@ -116,6 +113,73 @@ namespace FastTechFoods.Observability
 
             Log.Logger = loggerConfiguration.CreateLogger();
             services.AddSerilog();
+
+            // Configure OpenTelemetry
+            var resourceBuilder = ResourceBuilder.CreateDefault()
+                .AddService(serviceName: serviceName, serviceVersion: serviceVersion);
+
+            services.AddOpenTelemetry()
+                .ConfigureResource(resource => resource.AddService(
+                    serviceName: serviceName,
+                    serviceVersion: serviceVersion))
+                .WithTracing(tracing => tracing
+                    .AddSource(serviceName)
+                    .AddSource(DiagnosticHeaders.DefaultListenerName)
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
+                    .AddNpgsql()
+                    .AddOtlpExporter(options =>
+                    {
+                        options.Endpoint = new Uri(otlpEndpoint);
+                        options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                    }))
+                .WithMetrics(metrics => metrics
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddPrometheusExporter()
+                    .AddOtlpExporter(options =>
+                    {
+                        options.Endpoint = new Uri(otlpEndpoint);
+                        options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                    }));
+
+            // Configure logging with OpenTelemetry
+            services.AddLogging(logging =>
+            {
+                logging.AddOpenTelemetry(options =>
+                {
+                    options.SetResourceBuilder(resourceBuilder);
+                    options.IncludeFormattedMessage = true;
+                    options.IncludeScopes = true;
+
+                    options.AddOtlpExporter(exporterOptions =>
+                    {
+                        exporterOptions.Endpoint = new Uri(otlpEndpoint);
+                        exporterOptions.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                    });
+                });
+            });
+
+            return services;
+        }
+
+        /// <summary>
+        /// Configures comprehensive FastTechFoods observability using configuration values from the 'Observability' section.
+        /// This version only configures OpenTelemetry without Serilog for simpler logging scenarios.
+        /// </summary>
+        /// <param name="services">The IServiceCollection to add services to</param>
+        /// <param name="configuration">The configuration object to read from</param>
+        /// <returns>The IServiceCollection for chaining</returns>
+        public static IServiceCollection AddFastTechFoodsObservability(
+            this IServiceCollection services,
+            IConfiguration configuration)
+        {
+            // Get observability configuration section
+            var observabilityConfig = configuration.GetSection("Observability");
+            var serviceName = observabilityConfig["ServiceName"] ?? "FastTechFoods.Service";
+            var serviceVersion = observabilityConfig["ServiceVersion"] ?? "1.0.0";
+            var otlpEndpoint = observabilityConfig["OtlpEndpoint"] ?? "http://localhost:4317";
 
             // Configure OpenTelemetry
             var resourceBuilder = ResourceBuilder.CreateDefault()
@@ -163,154 +227,7 @@ namespace FastTechFoods.Observability
                 });
             });
 
-            // Configure HealthChecks
-            services.AddHealthChecks()
-                .AddDbContextCheck<TDbContext>("database-context");
-
-            // Configure HealthChecks UI with in-memory storage
-            services.AddHealthChecksUI(setup =>
-            {
-                setup.SetEvaluationTimeInSeconds(15);
-                setup.MaximumHistoryEntriesPerEndpoint(60);
-                //setup.AddHealthCheckEndpoint(serviceName, "/health");
-            })
-            .AddInMemoryStorage();
-
             return services;
-        }
-
-        /// <summary>
-        /// Configures comprehensive FastTechFoods observability and HealthChecks with custom database health check.
-        /// </summary>
-        /// <typeparam name="TDbContext">The Entity Framework DbContext type for database health checks</typeparam>
-        /// <typeparam name="THealthCheck">The custom database health check implementation</typeparam>
-        /// <param name="services">The IServiceCollection to add services to</param>
-        /// <param name="configuration">The configuration object to read from</param>
-        /// <returns>The IServiceCollection for chaining</returns>
-        public static IServiceCollection AddFastTechFoodsObservabilityAndHealthChecks<TDbContext, THealthCheck>(
-            this IServiceCollection services,
-            IConfiguration configuration)
-            where TDbContext : DbContext
-            where THealthCheck : class, Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheck
-        {
-            // Get observability configuration section
-            var observabilityConfig = configuration.GetSection("Observability");
-            var serviceName = observabilityConfig["ServiceName"] ?? "FastTechFoods.Service";
-            var serviceVersion = observabilityConfig["ServiceVersion"] ?? "1.0.0";
-            var otlpEndpoint = observabilityConfig["OtlpEndpoint"] ?? "http://localhost:4317";
-            
-            // Configure Serilog
-            var loggerConfiguration = new LoggerConfiguration()
-                .ReadFrom.Configuration(configuration)
-                .Enrich.WithProperty("ServiceName", serviceName)
-                .Enrich.WithProperty("ServiceVersion", serviceVersion);
-
-            if (!string.IsNullOrEmpty(otlpEndpoint))
-            {
-                loggerConfiguration.WriteTo.OpenTelemetry(options =>
-                {
-                    options.Endpoint = otlpEndpoint;
-                    options.ResourceAttributes.Add("service.name", serviceName);
-                    options.ResourceAttributes.Add("service.version", serviceVersion);
-                });
-            }
-
-            Log.Logger = loggerConfiguration.CreateLogger();
-            services.AddSerilog();
-
-            // Configure OpenTelemetry
-            var resourceBuilder = ResourceBuilder.CreateDefault()
-                .AddService(serviceName: serviceName, serviceVersion: serviceVersion);
-
-            services.AddOpenTelemetry()
-                .ConfigureResource(resource => resource.AddService(
-                    serviceName: serviceName,
-                    serviceVersion: serviceVersion))
-                .WithTracing(tracing => tracing
-                    .AddSource(serviceName)
-                    .AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation()
-                    .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
-                    .AddNpgsql()
-                    .AddOtlpExporter(options =>
-                    {
-                        options.Endpoint = new Uri(otlpEndpoint);
-                        options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
-                    }))
-                .WithMetrics(metrics => metrics
-                    .AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation()
-                    .AddPrometheusExporter()
-                    .AddOtlpExporter(options =>
-                    {
-                        options.Endpoint = new Uri(otlpEndpoint);
-                        options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
-                    }));
-
-            // Configure logging with OpenTelemetry
-            services.AddLogging(logging =>
-            {
-                logging.AddOpenTelemetry(options =>
-                {
-                    options.SetResourceBuilder(resourceBuilder);
-                    options.IncludeFormattedMessage = true;
-                    options.IncludeScopes = true;
-
-                    options.AddOtlpExporter(exporterOptions =>
-                    {
-                        exporterOptions.Endpoint = new Uri(otlpEndpoint);
-                        exporterOptions.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
-                    });
-                });
-            });
-
-            // Configure HealthChecks with custom health check (without duplicating DbContext check)
-            services.AddHealthChecks()
-                .AddDbContextCheck<TDbContext>("database-context")
-                .AddCheck<THealthCheck>("custom-health-check");
-
-            // Configure HealthChecks UI with in-memory storage
-            services.AddHealthChecksUI(setup =>
-            {
-                setup.SetEvaluationTimeInSeconds(15);
-                setup.MaximumHistoryEntriesPerEndpoint(60);
-                setup.AddHealthCheckEndpoint(serviceName, "/health");
-            })
-            .AddInMemoryStorage();
-
-            return services;
-        }
-
-        /// <summary>
-        /// Configures the HealthChecks UI middleware for FastTechFoods applications.
-        /// This should be called in the Configure method of your Startup class or in Program.cs.
-        /// </summary>
-        /// <param name="app">The IApplicationBuilder to configure</param>
-        /// <param name="includePrometheus">Whether to include Prometheus metrics endpoint (default: true)</param>
-        /// <returns>The IApplicationBuilder for chaining</returns>
-        public static IApplicationBuilder UseFastTechFoodsHealthChecksUI(this IApplicationBuilder app, bool includePrometheus = true)
-        {
-            // Configure Prometheus metrics endpoint only if requested
-            if (includePrometheus)
-            {
-                app.UseOpenTelemetryPrometheusScrapingEndpoint();
-            }
-
-            // Configure health check endpoints
-            app.UseHealthChecks("/health", new HealthCheckOptions()
-            {
-                Predicate = _ => true,
-                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-            });
-
-            // Configure HealthChecks UI
-            app.UseHealthChecksUI(setup =>
-            {
-                setup.UIPath = "/health-ui";
-                setup.ApiPath = "/health-ui-api";
-            });
-
-            return app;
         }
 
         /// <summary>
@@ -370,35 +287,6 @@ namespace FastTechFoods.Observability
             var serviceVersion = observabilityConfig["ServiceVersion"] ?? "1.0.0";
 
             return services.AddFastTechFoodsPrometheus(serviceName, serviceVersion);
-        }
-
-        /// <summary>
-        /// Configures only HealthChecks without duplicating any observability configuration.
-        /// Use this when you already have observability configured and only need health checks.
-        /// </summary>
-        /// <typeparam name="TDbContext">The Entity Framework DbContext type for database health checks</typeparam>
-        /// <param name="services">The IServiceCollection to add services to</param>
-        /// <param name="serviceName">The service name for health check UI</param>
-        /// <returns>The IServiceCollection for chaining</returns>
-        public static IServiceCollection AddFastTechFoodsHealthChecksOnly<TDbContext>(
-            this IServiceCollection services,
-            string serviceName = "FastTechFoods.Service")
-            where TDbContext : DbContext
-        {
-            // Configure only HealthChecks
-            services.AddHealthChecks()
-                .AddDbContextCheck<TDbContext>("database-context");
-
-            // Configure HealthChecks UI with in-memory storage
-            services.AddHealthChecksUI(setup =>
-            {
-                setup.SetEvaluationTimeInSeconds(15);
-                setup.MaximumHistoryEntriesPerEndpoint(60);
-                setup.AddHealthCheckEndpoint(serviceName, "/health");
-            })
-            .AddInMemoryStorage();
-
-            return services;
         }
     }
 }

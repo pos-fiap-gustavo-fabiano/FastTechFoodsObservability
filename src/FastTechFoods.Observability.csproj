@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
-	<Version>2.5.0</Version>
+	<Version>2.6.0</Version>
   </PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="MassTransit" Version="8.2.5" />
@@ -32,6 +32,7 @@
 		<PackageReference Include="prometheus-net.AspNetCore.HealthChecks" Version="8.2.1" />
 		 <PackageReference Include="AspNetCore.HealthChecks.MongoDb" Version="9.0.0" /> 
 		 <PackageReference Include="MongoDB.Driver" Version="3.0.0" /> 
+	<PackageReference Include="RabbitMQ.Client.OpenTelemetry" Version="1.0.0-rc.1" />
 	</ItemGroup>
 	<ItemGroup>
 		<None Include="docs\README.md" Pack="true" PackagePath="\" />

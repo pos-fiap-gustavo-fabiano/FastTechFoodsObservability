@@ -10,6 +10,8 @@ using OpenTelemetry.Trace;
 using Serilog;
 using Npgsql;
 using MassTransit.Logging;
+using OpenTelemetry.Context.Propagation;
+using OpenTelemetry;
 
 namespace FastTechFoods.Observability
 {
@@ -41,6 +43,7 @@ namespace FastTechFoods.Observability
                     .AddSource(serviceName)
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
+                    .AddRabbitMQInstrumentation()
                     .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
                     .AddNpgsql()
                     // TODO: Add MongoDB instrumentation when package is stable
@@ -57,7 +60,7 @@ namespace FastTechFoods.Observability
                     {
                         options.Endpoint = new Uri(otlpEndpoint);
                         options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
-                    }));
+                    }).AddConsoleExporter());
             
             services.AddLogging(logging =>
             {
@@ -89,6 +92,7 @@ namespace FastTechFoods.Observability
             this IServiceCollection services,
             IConfiguration configuration)
         {
+
             // Get observability configuration section
             var observabilityConfig = configuration.GetSection("Observability");
             var serviceName = observabilityConfig["ServiceName"] ?? "FastTechFoods.Service";
@@ -127,6 +131,7 @@ namespace FastTechFoods.Observability
                     .AddSource(DiagnosticHeaders.DefaultListenerName)
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
+                    .AddRabbitMQInstrumentation()
                     .AddEntityFrameworkCoreInstrumentation(options => options.SetDbStatementForText = true)
                     .AddNpgsql()
                     .AddOtlpExporter(options =>

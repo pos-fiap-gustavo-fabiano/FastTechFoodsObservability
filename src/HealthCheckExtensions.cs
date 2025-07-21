@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using HealthChecks.UI.Client;
 
 namespace FastTechFoods.Observability
 {
@@ -21,22 +20,9 @@ namespace FastTechFoods.Observability
             IConfiguration configuration)
             where TDbContext : DbContext
         {
-            // Get observability configuration section
-            var observabilityConfig = configuration.GetSection("Observability");
-            var serviceName = observabilityConfig["ServiceName"] ?? "FastTechFoods.Service";
-
             // Configure HealthChecks
             services.AddHealthChecks()
                 .AddDbContextCheck<TDbContext>("database-context");
-
-            // Configure HealthChecks UI with in-memory storage
-            services.AddHealthChecksUI(setup =>
-            {
-                setup.SetEvaluationTimeInSeconds(15);
-                setup.MaximumHistoryEntriesPerEndpoint(60);
-                setup.AddHealthCheckEndpoint(serviceName, "/health");
-            })
-            .AddInMemoryStorage();
 
             return services;
         }
@@ -55,23 +41,10 @@ namespace FastTechFoods.Observability
             where TDbContext : DbContext
             where THealthCheck : class, Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheck
         {
-            // Get observability configuration section
-            var observabilityConfig = configuration.GetSection("Observability");
-            var serviceName = observabilityConfig["ServiceName"] ?? "FastTechFoods.Service";
-
             // Configure HealthChecks with custom health check (without duplicating DbContext check)
             services.AddHealthChecks()
                 .AddDbContextCheck<TDbContext>("database-context")
                 .AddCheck<THealthCheck>("custom-health-check");
-
-            // Configure HealthChecks UI with in-memory storage
-            services.AddHealthChecksUI(setup =>
-            {
-                setup.SetEvaluationTimeInSeconds(15);
-                setup.MaximumHistoryEntriesPerEndpoint(60);
-                setup.AddHealthCheckEndpoint(serviceName, "/health");
-            })
-            .AddInMemoryStorage();
 
             return services;
         }
@@ -92,15 +65,6 @@ namespace FastTechFoods.Observability
             // Configure only HealthChecks
             services.AddHealthChecks()
                 .AddDbContextCheck<TDbContext>("database-context");
-
-            // Configure HealthChecks UI with in-memory storage
-            services.AddHealthChecksUI(setup =>
-            {
-                setup.SetEvaluationTimeInSeconds(15);
-                setup.MaximumHistoryEntriesPerEndpoint(60);
-                setup.AddHealthCheckEndpoint(serviceName, "/health");
-            })
-            .AddInMemoryStorage();
 
             return services;
         }
@@ -125,39 +89,19 @@ namespace FastTechFoods.Observability
                 .AddDbContextCheck<TDbContext>("database-context")
                 .AddCheck<THealthCheck>("custom-health-check");
 
-            // Configure HealthChecks UI with in-memory storage
-            services.AddHealthChecksUI(setup =>
-            {
-                setup.SetEvaluationTimeInSeconds(15);
-                setup.MaximumHistoryEntriesPerEndpoint(60);
-                setup.AddHealthCheckEndpoint(serviceName, "/health");
-            })
-            .AddInMemoryStorage();
-
             return services;
         }
 
         /// <summary>
-        /// Configures the HealthChecks UI middleware for FastTechFoods applications.
+        /// Configures the HealthChecks middleware for FastTechFoods applications.
         /// This should be called in the Configure method of your Startup class or in Program.cs.
         /// </summary>
         /// <param name="app">The IApplicationBuilder to configure</param>
         /// <returns>The IApplicationBuilder for chaining</returns>
-        public static IApplicationBuilder UseFastTechFoodsHealthChecksUI(this IApplicationBuilder app)
+        public static IApplicationBuilder UseFastTechFoodsHealthChecks(this IApplicationBuilder app)
         {
             // Configure health check endpoints
-            app.UseHealthChecks("/health", new HealthCheckOptions()
-            {
-                Predicate = _ => true,
-                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-            });
-
-            // Configure HealthChecks UI
-            app.UseHealthChecksUI(setup =>
-            {
-                setup.UIPath = "/health-ui";
-                setup.ApiPath = "/health-ui-api";
-            });
+            app.UseHealthChecks("/health");
 
             return app;
         }
@@ -182,10 +126,6 @@ namespace FastTechFoods.Observability
             string mongoConnectionString,
             string? mongoDatabaseName = null)
         {
-            // Get observability configuration section
-            var observabilityConfig = configuration.GetSection("Observability");
-            var serviceName = observabilityConfig["ServiceName"] ?? "FastTechFoods.Service";
-
             // Register MongoClient as singleton (MongoDB recommendation)
             services.AddSingleton(sp => new MongoDB.Driver.MongoClient(mongoConnectionString));
 
@@ -202,15 +142,6 @@ namespace FastTechFoods.Observability
                 // Check connection only (lists databases)
                 healthChecksBuilder.AddMongoDb(name: "mongodb");
             }
-
-            // Configure HealthChecks UI with in-memory storage
-            services.AddHealthChecksUI(setup =>
-            {
-                setup.SetEvaluationTimeInSeconds(15);
-                setup.MaximumHistoryEntriesPerEndpoint(60);
-                setup.AddHealthCheckEndpoint(serviceName, "/health");
-            })
-            .AddInMemoryStorage();
 
             return services;
         }
@@ -237,10 +168,6 @@ namespace FastTechFoods.Observability
             string? mongoDatabaseName = null)
             where TDbContext : DbContext
         {
-            // Get observability configuration section
-            var observabilityConfig = configuration.GetSection("Observability");
-            var serviceName = observabilityConfig["ServiceName"] ?? "FastTechFoods.Service";
-
             // Configure HealthChecks with DbContext
             var healthChecksBuilder = services.AddHealthChecks()
                 .AddDbContextCheck<TDbContext>("database-context");
@@ -258,15 +185,6 @@ namespace FastTechFoods.Observability
                 // Check connection only (lists databases)
                 healthChecksBuilder.AddMongoDb(name: "mongodb");
             }
-
-            // Configure HealthChecks UI with in-memory storage
-            services.AddHealthChecksUI(setup =>
-            {
-                setup.SetEvaluationTimeInSeconds(15);
-                setup.MaximumHistoryEntriesPerEndpoint(60);
-                setup.AddHealthCheckEndpoint(serviceName, "/health");
-            })
-            .AddInMemoryStorage();
 
             return services;
         }
